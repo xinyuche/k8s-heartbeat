@@ -19,6 +19,9 @@ func main() {
 		log.Println("Find InClusterConfig successful")
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Println("Failed to fetch clientset by InClusterConfig")
+	}
 
 	// loop the heartbeat style test for every 5 min
 	for {
