@@ -28,7 +28,7 @@ func main() {
 		log.Println("Starting to fetch node list")
 		nodelist, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			log.Println("Failed to get node list")
+			log.Printf("Failed to get node list: %v", err)
 		}
 		numOfNode := len(nodelist.Items)
 		log.Printf("current num of node: %v", numOfNode)
