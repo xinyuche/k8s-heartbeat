@@ -1,0 +1,23 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: k8s-heartbeat
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-heartbeat
+  template:
+    metadata:
+      labels:
+        app: k8s-heartbeat
+    spec:
+      containers:
+      - image: camillecxy/k8s:latest
+        imagePullPolicy: IfNotPresent
+        name: k8s
+        resources: {}
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: regcred
