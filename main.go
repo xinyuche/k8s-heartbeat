@@ -3,11 +3,18 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+)
+
+const (
+	CONN_HOST = "localhost"
+	CONN_PORT = "8180"
+	CONN_TYPE = "tcp"
 )
 
 func main() {
@@ -22,6 +29,26 @@ func main() {
 	if err != nil {
 		log.Println("Failed to fetch clientset by InClusterConfig")
 	}
+
+	// tcp client
+	log.Print("Dialling " + CONN_HOST + ":" + CONN_PORT)
+	conn, err := net.Dial(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
+	if err != nil {
+		log.Fatalf("Dial failed to %s", CONN_PORT)
+	}
+
+	log.Print("sending heartbeat")
+	conn.Write([]byte("heartbeat."))
+
+	log.Print("waiting for response")
+
+	// Make a buffer to hold incoming data.
+	buf := make([]byte, 1024)
+	// Read the incoming connection into the buffer.
+	conn.Read(buf)
+
+	log.Printf("received: %s", string(buf[:]))
+	conn.Close()
 
 	// loop the heartbeat style test for every 5 min
 	for {
