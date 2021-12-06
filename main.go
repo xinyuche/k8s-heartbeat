@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	CONN_HOST = "10.97.252.41"
-	CONN_PORT = "32406"
+	CONN_HOST = "172.17.0.3"
+	CONN_PORT = "32504"
 	CONN_TYPE = "tcp"
 )
 
