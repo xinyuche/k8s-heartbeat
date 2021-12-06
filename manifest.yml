@@ -14,7 +14,7 @@ spec:
         app: k8s-heartbeat
     spec:
       containers:
-      - image: camillecxy/k8s:latest
+      - image: camillecxy/k8s:tcp
         imagePullPolicy: IfNotPresent
         name: k8s
         resources: {}
