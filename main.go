@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	CONN_HOST = "live-puppet"
+	CONN_HOST = "10.244.1.2"
 	CONN_PORT = "32504"
 	CONN_TYPE = "tcp"
 )
