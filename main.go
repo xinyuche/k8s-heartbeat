@@ -17,6 +17,22 @@ const (
 	CONN_TYPE = "tcp"
 )
 
+type Heartbeat struct {
+	clientSet *kubernetes.Clientset
+}
+
+func (hb *Heartbeat) IPFinder() error {
+	pods, err := hb.clientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Printf("Unable to fetch pod list: %v", err)
+		return err
+	}
+	for _, pod := range pods.Items {
+		log.Printf("Pod Name: %v  Pod IP: %v  Pod's NodeName: %v", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
+	}
+	return nil
+}
+
 func main() {
 	log.Println("Starting to find InClusterConfig")
 	config, err := rest.InClusterConfig()
@@ -28,6 +44,14 @@ func main() {
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println("Failed to fetch clientset by InClusterConfig")
+	}
+
+	// create Heartbeat
+	hb := Heartbeat{clientSet: clientSet}
+	log.Println("Fetching Pod IP list")
+	iperr := hb.IPFinder()
+	if iperr != nil {
+		log.Println("Not able to fetch ip list")
 	}
 
 	// tcp client
@@ -53,7 +77,7 @@ func main() {
 	// loop the heartbeat style test for every 5 min
 	for {
 		log.Println("Starting to fetch node list")
-		nodelist, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		nodelist, err := hb.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			log.Printf("Failed to get node list: %v", err)
 		}
