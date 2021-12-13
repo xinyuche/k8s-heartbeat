@@ -22,7 +22,7 @@ type Heartbeat struct {
 }
 
 func (hb *Heartbeat) IPFinder() error {
-	pods, err := hb.clientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	pods, err := hb.clientSet.CoreV1().Pods("live-puppet").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Printf("Unable to fetch pod list: %v", err)
 		return err
