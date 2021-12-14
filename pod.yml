@@ -5,7 +5,7 @@ metadata:
   namespace: default
 spec:
   containers:
-  - image: camillecxy/k8s:heartbeat1
+  - image: camillecxy/k8s:heartbeat2
     imagePullPolicy: IfNotPresent
     name: k8s
     resources: {}
