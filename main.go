@@ -6,14 +6,14 @@ import (
 	"net"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
 const (
-	CONN_HOST = "10.244.2.3"
-	CONN_PORT = "32504"
+	HB_PORT   = "32504"
 	CONN_TYPE = "tcp"
 )
 
@@ -21,18 +21,45 @@ type Heartbeat struct {
 	clientSet *kubernetes.Clientset
 }
 
-func (hb *Heartbeat) IPFinder() error {
+func (hb *Heartbeat) PodsFinder() ([]v1.Pod, error) {
 	pods, err := hb.clientSet.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Printf("Unable to fetch pod list: %v", err)
-		return err
+		return nil, err
 	}
 	for _, pod := range pods.Items {
 		log.Printf("Pod Name: %v  Pod IP: %v  Pod's NodeName: %v", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
 	}
-	return nil
+	return pods.Items, nil
 }
 
+func (hb *Heartbeat) HeartbeatSender(podName string, podIP string, nodeName string) (error, bool) {
+	log.Printf("Sending heartbeat to node %v. podIP: %v", nodeName, podIP)
+	log.Print("Dialling " + podIP + ":" + HB_PORT)
+	hbconn, err := net.Dial(CONN_TYPE, podIP+":"+HB_PORT)
+	if err != nil {
+		log.Printf("Dial failed to port %s", HB_PORT)
+		return err, false
+	}
+	log.Println("Writing heartbeat to conn")
+	hbconn.Write([]byte("heartbeat"))
+	log.Println("Waiting for response")
+	// Make a buffer to hold incoming data.
+	hbbuf := make([]byte, 1024)
+	// Read the incoming connection into the buffer.
+	hbconn.Read(hbbuf)
+	log.Printf("Received: %s", string(hbbuf[:]))
+	if string(hbbuf[:]) == "heartbeat received" {
+		hbconn.Close()
+		log.Println(nodeName + " is running")
+		return nil, true
+	} else {
+		hbconn.Write([]byte("restart"))
+		log.Println(nodeName + " is requested for restart")
+		hbconn.Close()
+		return nil, false
+	}
+}
 func main() {
 	log.Println("Starting to find InClusterConfig")
 	config, err := rest.InClusterConfig()
@@ -48,31 +75,6 @@ func main() {
 
 	// create Heartbeat
 	hb := Heartbeat{clientSet: clientSet}
-	log.Println("Fetching Pod IP list")
-	iperr := hb.IPFinder()
-	if iperr != nil {
-		log.Println("Not able to fetch ip list")
-	}
-
-	// tcp client
-	log.Print("Dialling " + CONN_HOST + ":" + CONN_PORT)
-	conn, err := net.Dial(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
-	if err != nil {
-		log.Fatalf("Dial failed to %s", CONN_PORT)
-	}
-
-	log.Print("sending heartbeat")
-	conn.Write([]byte("heartbeat."))
-
-	log.Print("waiting for response")
-
-	// Make a buffer to hold incoming data.
-	buf := make([]byte, 1024)
-	// Read the incoming connection into the buffer.
-	conn.Read(buf)
-
-	log.Printf("received: %s", string(buf[:]))
-	conn.Close()
 
 	// loop the heartbeat style test for every 5 min
 	for {
@@ -83,6 +85,30 @@ func main() {
 		}
 		numOfNode := len(nodelist.Items)
 		log.Printf("current num of node: %v", numOfNode)
+
+		log.Println("Fetching Pod IP list")
+		podList, podListErr := hb.PodsFinder()
+		if podListErr != nil {
+			log.Println("Not able to fetch ip list")
+		}
+
+		for _, pod := range podList {
+			var podName = pod.Name
+			var podIP = pod.Status.PodIP
+			var nodeName = pod.Spec.NodeName
+			log.Printf("Pod Name: %v  Pod IP: %v  Pod's NodeName: %v", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
+			if nodeName != "minikube" {
+				err, status := hb.HeartbeatSender(podName, podIP, nodeName)
+				if err != nil {
+					log.Printf("Send Heartbeat failed: %v", err)
+				}
+				if status {
+					log.Println("Node: " + nodeName + " is active ")
+				} else {
+					log.Println("Node: " + nodeName + " is not active ")
+				}
+			}
+		}
 		log.Println("Cycle over, sleep for 5 mins")
 		time.Sleep(5 * time.Minute)
 	}

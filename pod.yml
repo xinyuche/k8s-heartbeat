@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: k8s-heartbeat
+  namespace: default
+spec:
+  containers:
+  - image: camillecxy/k8s:heartbeat
+    imagePullPolicy: IfNotPresent
+    name: k8s
+    resources: {}
+  dnsPolicy: ClusterFirst
+  nodeSelector:
+    nodenum: m01
+  imagePullSecrets:
+  - name: regcred
