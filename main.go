@@ -27,9 +27,6 @@ func (hb *Heartbeat) PodsFinder() ([]v1.Pod, error) {
 		log.Printf("Unable to fetch pod list: %v", err)
 		return nil, err
 	}
-	for _, pod := range pods.Items {
-		log.Printf("Pod Name: %v  Pod IP: %v  Pod's NodeName: %v", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
-	}
 	return pods.Items, nil
 }
 
@@ -48,19 +45,29 @@ func (hb *Heartbeat) HeartbeatSender(podName string, podIP string, nodeName stri
 	hbbuf := make([]byte, 1024)
 	// Read the incoming connection into the buffer.
 	hbconn.Read(hbbuf)
-	log.Printf("Received: %s", string(hbbuf[:]))
-	if string(hbbuf[:]) == "heartbeat received" {
+	if string(hbbuf[:18]) == "heartbeat received" {
+		log.Println("In heartbeat received condition")
+		log.Printf("Received: %s", string(hbbuf[:18]))
 		hbconn.Close()
 		log.Println(nodeName + " is running")
 		return nil, true
-	} else {
+	} else if string(hbbuf[:6]) == "failed" {
+		log.Println("In failed condition")
+		log.Printf("Received: %s", string(hbbuf[:6]))
 		hbconn.Write([]byte("restart"))
-		log.Println(nodeName + " is requested for restart")
+		log.Println(nodeName + " is requesting for restart")
 		hbconn.Close()
 		return nil, false
+	} else {
+		log.Println("In control signal received condition")
+		log.Printf("Received: %s", string(hbbuf[:23]))
+		log.Println(nodeName + " is received request for restart")
+		hbconn.Close()
+		return nil, true
 	}
 }
 func main() {
+	log.Println("version 1")
 	log.Println("Starting to find InClusterConfig")
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -109,7 +116,7 @@ func main() {
 				}
 			}
 		}
-		log.Println("Cycle over, sleep for 5 mins")
-		time.Sleep(5 * time.Minute)
+		log.Println("Cycle over, sleep for 2 mins")
+		time.Sleep(2 * time.Minute)
 	}
 }
